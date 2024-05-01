@@ -33,9 +33,11 @@ initPrevTimes = PrevTimes {
     }
 
 -- | Time interval in msc between the previous event and the current
+--
+-- 'Nothing' if there is no previous event.
 data Delta = Delta {
-      deltaActual :: Double
-    , deltaShown  :: Double
+      deltaActual :: Maybe Double
+    , deltaShown  :: Maybe Double
     }
 
 deltaEvent :: PrevTimes -> Event -> Bool -> (PrevTimes, Delta)
@@ -47,8 +49,8 @@ deltaEvent PrevTimes{prevActual, prevShown} Event{evCap, evTime} isShown = (
                          else                         prevShown
         }
     , Delta {
-          deltaActual = toInterval $ Map.findWithDefault 0 evCap prevActual
-        , deltaShown  = toInterval $ Map.findWithDefault 0 evCap prevShown
+          deltaActual = toInterval <$> Map.lookup evCap prevActual
+        , deltaShown  = toInterval <$> Map.lookup evCap prevShown
         }
     )
   where
@@ -69,11 +71,11 @@ showDelta cmdline padding filters = do
             when isShown $
               putStrLn $ mconcat [
                   padTo (padDelta padding) $
-                    printf "%7.2fms" (deltaShown delta)
+                    maybe "   ---" (printf "%7.2fms") $ deltaShown delta
                 , if Filters.allDisabled filters
                     then ""
                     else padTo (padDelta padding) $
-                           printf "%7.2fms" (deltaActual delta)
+                           maybe "---" (printf "%7.2fms") $ deltaActual delta
                 , padTo (padTime padding) $
                     printf "%12d" (evTime e)
                 , padTo (padCap padding) $
