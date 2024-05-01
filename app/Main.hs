@@ -1,8 +1,10 @@
 module Main where
 
 import Control.Monad
-import Data.IntMap (IntMap)
-import Data.IntMap qualified as IntMap
+import Data.IntMap.Strict (IntMap)
+import Data.IntMap.Strict qualified as IntMap
+import Data.Map.Strict (Map)
+import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.Word
 import GHC.RTS.Events
@@ -26,19 +28,22 @@ main = do
   Commands
 -------------------------------------------------------------------------------}
 
+-- | We record the time of the previous event /per capability/
+type PrevTimes = Map (Maybe Int) Timestamp
+
 showDelta :: Cmdline -> Padding -> Filters -> IO ()
 showDelta cmdline padding filters = do
     EventLog{header, dat} <- readEventLogOrExit (cmdInput cmdline)
     go (buildEventTypeMap $ eventTypes header) (sortEvents $ events dat)
   where
     go :: IntMap EventType -> [Event] -> IO ()
-    go imap = loop 0
+    go imap = loop Map.empty
       where
-        loop :: Timestamp -> [Event] -> IO ()
+        loop :: PrevTimes -> [Event] -> IO ()
         loop _    []     = return ()
         loop prev (e:es) = do
             let diffNs :: Word64
-                diffNs = evTime e - prev
+                diffNs = evTime e - fromMaybe 0 (Map.lookup (evCap e) prev)
 
                 diffMs :: Double
                 diffMs = fromIntegral diffNs / 1_000_000
@@ -53,7 +58,7 @@ showDelta cmdline padding filters = do
                 , autoIndent (totalPadding padding) $
                     showEventInfoWith imap (evSpec e)
                 ]
-            loop (evTime e) es
+            loop (Map.insert (evCap e) (evTime e) prev) es
           where
             shouldShow :: Bool
             shouldShow = and [
