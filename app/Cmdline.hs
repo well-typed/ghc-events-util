@@ -68,7 +68,7 @@ parseShowDelta = ShowDelta <$> parsePadding
 parsePadding :: Parser Padding
 parsePadding =
     Padding
-      <$> parsePaddingFor "delta" 10
+      <$> parsePaddingFor "delta" 11
       <*> parsePaddingFor "time"  13
       <*> parsePaddingFor "cap"   7
 

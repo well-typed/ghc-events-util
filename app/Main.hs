@@ -2,6 +2,7 @@ module Main where
 
 import Data.IntMap (IntMap)
 import Data.IntMap qualified as IntMap
+import Data.Maybe (fromMaybe)
 import Data.Word
 import GHC.RTS.Events
 import System.Exit
@@ -44,12 +45,13 @@ showDelta cmdline padding = do
                 diffMs = fromIntegral diffNs / 1_000_000
             putStrLn $ mconcat [
                 padTo padDelta $
-                  printf "%0.2fms" diffMs
+                  printf "%7.2fms" diffMs
               , padTo padTime $
                   show (evTime e)
               , padTo padCap $
                    maybe "" (\c -> "cap " ++ show c) (evCap e)
-              , showEventInfoWith imap (evSpec e)
+              , autoIndent (totalPadding padding) $
+                  showEventInfoWith imap (evSpec e)
               ]
             loop (evTime e) es
 
@@ -84,4 +86,20 @@ padTo :: Maybe Int -> String -> String
 padTo Nothing  _ = ""
 padTo (Just p) s = s ++ replicate (p - length s) ' '
 
+-- | Simulation of vim's \"autoindent\"
+--
+-- Each new line starts at the current column
+autoIndent :: Int -> String -> String
+autoIndent n = concatMap aux
+  where
+    aux :: Char -> [Char]
+    aux '\n' = "\n" ++ replicate n ' '
+    aux c    = [c]
+
+totalPadding :: Padding -> Int
+totalPadding p = sum [
+      fromMaybe 0 $ padDelta p
+    , fromMaybe 0 $ padTime  p
+    , fromMaybe 0 $ padCap   p
+    ]
 
