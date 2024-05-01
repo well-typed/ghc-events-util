@@ -27,6 +27,8 @@ executable ghc-events-util
       Main.hs
   other-modules:
       GhcEventsUtil.Cmdline
+      GhcEventsUtil.Command.ShowDelta
+      GhcEventsUtil.Filters
       GhcEventsUtil.Regex
   hs-source-dirs:
       app

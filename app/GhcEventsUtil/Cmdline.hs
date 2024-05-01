@@ -6,11 +6,10 @@ module GhcEventsUtil.Cmdline (
   , getCmdline
   ) where
 
-import GHC.RTS.Events (Timestamp)
 import Options.Applicative
 
-import GhcEventsUtil.Regex (Regex)
 import GhcEventsUtil.Regex qualified as Regex
+import GhcEventsUtil.Filters (Filters(..))
 
 {-------------------------------------------------------------------------------
   Definition
@@ -33,13 +32,6 @@ data Padding = Padding {
       padDelta :: Maybe Int
     , padTime  :: Maybe Int
     , padCap   :: Maybe Int
-    }
-  deriving (Show)
-
-data Filters = Filters {
-      filterShowFrom  :: Maybe Timestamp
-    , filterShowUntil :: Maybe Timestamp
-    , filterMatch     :: Maybe Regex
     }
   deriving (Show)
 
@@ -81,7 +73,7 @@ parsePadding :: Parser Padding
 parsePadding =
     Padding
       <$> parsePaddingFor "delta" 11
-      <*> parsePaddingFor "time"  13
+      <*> parsePaddingFor "time"  14
       <*> parsePaddingFor "cap"   7
 
 parsePaddingFor :: String -> Int -> Parser (Maybe Int)

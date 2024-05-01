@@ -7,7 +7,7 @@
 module GhcEventsUtil.Regex (
     Regex -- opaque
   , compile
-    -- * Using the regex
+    -- * Main API
   , matchTest
   ) where
 
@@ -35,7 +35,7 @@ instance Show Regex where
     . shows regexString
 
 {-------------------------------------------------------------------------------
-  Using the regex
+  Main API
 -------------------------------------------------------------------------------}
 
 matchTest :: Regex -> String -> Bool
