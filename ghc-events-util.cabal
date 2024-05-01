@@ -26,10 +26,12 @@ executable ghc-events-util
   main-is:
       Main.hs
   other-modules:
-      Cmdline
+      GhcEventsUtil.Cmdline
+      GhcEventsUtil.Regex
   hs-source-dirs:
       app
   build-depends:
     , containers
     , ghc-events
     , optparse-applicative
+    , regex-pcre

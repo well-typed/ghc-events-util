@@ -1,4 +1,4 @@
-module Cmdline (
+module GhcEventsUtil.Cmdline (
     Cmdline(..)
   , Command(..)
   , Padding(..)
@@ -8,6 +8,9 @@ module Cmdline (
 
 import GHC.RTS.Events (Timestamp)
 import Options.Applicative
+
+import GhcEventsUtil.Regex (Regex)
+import GhcEventsUtil.Regex qualified as Regex
 
 {-------------------------------------------------------------------------------
   Definition
@@ -36,6 +39,7 @@ data Padding = Padding {
 data Filters = Filters {
       filterShowFrom  :: Maybe Timestamp
     , filterShowUntil :: Maybe Timestamp
+    , filterMatch     :: Maybe Regex
     }
   deriving (Show)
 
@@ -105,6 +109,12 @@ parseFilters =
                long "show-until"
              , help "Timestamp of the last event to show"
              ])
+      <*> (optional $ fmap Regex.compile $ strOption $ mconcat [
+               long "match"
+             , help "Only show events that match"
+             , metavar "REGEX"
+             ])
+
 
 
 

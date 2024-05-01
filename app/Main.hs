@@ -12,7 +12,8 @@ import System.Exit
 import System.IO
 import Text.Printf
 
-import Cmdline
+import GhcEventsUtil.Cmdline
+import GhcEventsUtil.Regex qualified as Regex
 
 {-------------------------------------------------------------------------------
   Top-level
@@ -42,11 +43,6 @@ showDelta cmdline padding filters = do
         loop :: PrevTimes -> [Event] -> IO ()
         loop _    []     = return ()
         loop prev (e:es) = do
-            let diffNs :: Word64
-                diffNs = evTime e - fromMaybe 0 (Map.lookup (evCap e) prev)
-
-                diffMs :: Double
-                diffMs = fromIntegral diffNs / 1_000_000
             when shouldShow $
               putStrLn $ mconcat [
                   padTo (padDelta padding) $
@@ -56,14 +52,24 @@ showDelta cmdline padding filters = do
                 , padTo (padCap padding) $
                      maybe "" (\c -> "cap " ++ show c) (evCap e)
                 , autoIndent (totalPadding padding) $
-                    showEventInfoWith imap (evSpec e)
+                    eventInfo
                 ]
             loop (Map.insert (evCap e) (evTime e) prev) es
           where
+            diffNs :: Word64
+            diffNs = evTime e - fromMaybe 0 (Map.lookup (evCap e) prev)
+
+            diffMs :: Double
+            diffMs = fromIntegral diffNs / 1_000_000
+
+            eventInfo :: String
+            eventInfo = showEventInfoWith imap (evSpec e)
+
             shouldShow :: Bool
             shouldShow = and [
-                  maybe True (\t -> evTime e >= t) $ filterShowFrom  filters
-                , maybe True (\t -> evTime e <= t) $ filterShowUntil filters
+                  maybe True (\t  -> evTime e >= t) $ filterShowFrom  filters
+                , maybe True (\t  -> evTime e <= t) $ filterShowUntil filters
+                , maybe True (\re -> Regex.matchTest re eventInfo) $ filterMatch filters
                 ]
 
 showEventInfoWith :: IntMap EventType -> EventInfo -> String
