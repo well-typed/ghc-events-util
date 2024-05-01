@@ -80,7 +80,7 @@ showDelta cmdline padding filters = do
                     printf "%12d" (evTime e)
                 , padTo (padCap padding) $
                      maybe "" (\c -> "cap " ++ show c) (evCap e)
-                , autoIndent (totalPadding padding) $
+                , autoIndent (totalPadding filters padding) $
                     eventInfo
                 ]
             loop prev' es
@@ -137,10 +137,13 @@ autoIndent n = concatMap aux
     aux '\n' = "\n" ++ replicate n ' '
     aux c    = [c]
 
-totalPadding :: Padding -> Int
-totalPadding p = sum [
-      fromMaybe 0 $ padDelta p
-    , fromMaybe 0 $ padTime  p
-    , fromMaybe 0 $ padCap   p
+totalPadding :: Filters -> Padding -> Int
+totalPadding filters padding = sum [
+      fromMaybe 0 $ padDelta padding
+    , if Filters.allDisabled filters
+        then 0
+        else fromMaybe 0 $ padDelta padding
+    , fromMaybe 0 $ padTime padding
+    , fromMaybe 0 $ padCap padding
     ]
 
