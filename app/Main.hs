@@ -1,5 +1,6 @@
 module Main where
 
+import Control.Monad
 import Data.IntMap (IntMap)
 import Data.IntMap qualified as IntMap
 import Data.Maybe (fromMaybe)
@@ -19,19 +20,17 @@ main :: IO ()
 main = do
     cmdline <- getCmdline
     case cmdCommand cmdline of
-      ShowDelta padding -> showDelta cmdline padding
+      ShowDelta padding filters -> showDelta cmdline padding filters
 
 {-------------------------------------------------------------------------------
   Commands
 -------------------------------------------------------------------------------}
 
-showDelta :: Cmdline -> Padding -> IO ()
-showDelta cmdline padding = do
+showDelta :: Cmdline -> Padding -> Filters -> IO ()
+showDelta cmdline padding filters = do
     EventLog{header, dat} <- readEventLogOrExit (cmdInput cmdline)
     go (buildEventTypeMap $ eventTypes header) (sortEvents $ events dat)
   where
-    Padding{padDelta, padTime, padCap} = padding
-
     go :: IntMap EventType -> [Event] -> IO ()
     go imap = loop 0
       where
@@ -43,17 +42,24 @@ showDelta cmdline padding = do
 
                 diffMs :: Double
                 diffMs = fromIntegral diffNs / 1_000_000
-            putStrLn $ mconcat [
-                padTo padDelta $
-                  printf "%7.2fms" diffMs
-              , padTo padTime $
-                  show (evTime e)
-              , padTo padCap $
-                   maybe "" (\c -> "cap " ++ show c) (evCap e)
-              , autoIndent (totalPadding padding) $
-                  showEventInfoWith imap (evSpec e)
-              ]
+            when shouldShow $
+              putStrLn $ mconcat [
+                  padTo (padDelta padding) $
+                    printf "%7.2fms" diffMs
+                , padTo (padTime padding) $
+                    show (evTime e)
+                , padTo (padCap padding) $
+                     maybe "" (\c -> "cap " ++ show c) (evCap e)
+                , autoIndent (totalPadding padding) $
+                    showEventInfoWith imap (evSpec e)
+                ]
             loop (evTime e) es
+          where
+            shouldShow :: Bool
+            shouldShow = and [
+                  maybe True (\t -> evTime e >= t) $ filterShowFrom  filters
+                , maybe True (\t -> evTime e <= t) $ filterShowUntil filters
+                ]
 
 showEventInfoWith :: IntMap EventType -> EventInfo -> String
 showEventInfoWith imap info =

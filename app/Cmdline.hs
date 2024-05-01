@@ -2,9 +2,11 @@ module Cmdline (
     Cmdline(..)
   , Command(..)
   , Padding(..)
+  , Filters(..)
   , getCmdline
   ) where
 
+import GHC.RTS.Events (Timestamp)
 import Options.Applicative
 
 {-------------------------------------------------------------------------------
@@ -12,13 +14,13 @@ import Options.Applicative
 -------------------------------------------------------------------------------}
 
 data Cmdline = Cmdline {
-      cmdCommand :: Command
-    , cmdInput   :: FilePath
+      cmdInput   :: FilePath
+    , cmdCommand :: Command
     }
   deriving (Show)
 
 data Command =
-    ShowDelta Padding
+    ShowDelta Padding Filters
   deriving (Show)
 
 -- | Padding (in characters) for the fields
@@ -28,6 +30,12 @@ data Padding = Padding {
       padDelta :: Maybe Int
     , padTime  :: Maybe Int
     , padCap   :: Maybe Int
+    }
+  deriving (Show)
+
+data Filters = Filters {
+      filterShowFrom  :: Maybe Timestamp
+    , filterShowUntil :: Maybe Timestamp
     }
   deriving (Show)
 
@@ -50,8 +58,8 @@ getCmdline = execParser opts
 parseCmdline :: Parser Cmdline
 parseCmdline =
     Cmdline
-      <$> parseCommand
-      <*> argument str (metavar "FILE")
+      <$> argument str (metavar "FILE")
+      <*> parseCommand
 
 parseCommand :: Parser Command
 parseCommand = subparser $ mconcat [
@@ -63,7 +71,7 @@ parseCommand = subparser $ mconcat [
     cmd l p d = command l $ info (p <**> helper) (progDesc d)
 
 parseShowDelta :: Parser Command
-parseShowDelta = ShowDelta <$> parsePadding
+parseShowDelta = ShowDelta <$> parsePadding <*> parseFilters
 
 parsePadding :: Parser Padding
 parsePadding =
@@ -85,6 +93,18 @@ parsePaddingFor field def = asum [
         , value def
         ]
     ]
+
+parseFilters :: Parser Filters
+parseFilters =
+    Filters
+      <$> (optional $ option auto $ mconcat [
+               long "show-from"
+             , help "Timestamp of the first event to show"
+             ])
+      <*> (optional $ option auto $ mconcat [
+               long "show-until"
+             , help "Timestamp of the last event to show"
+             ])
 
 
 
