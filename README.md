@@ -30,7 +30,7 @@ added the appropriate user events into the eventlog
 
 ```
    0.01ms    2155031916  cap 0  CLIENT start CREATE
-   0.00ms    2155038086  cap 0  creating thread 138
+   0.00ms    2155038086  cap 0  creating thread 138 "grapesy:clientInbound"
 ..
 .. many more events
 ..
@@ -44,6 +44,25 @@ shows the time interval between the _shown_ events only:
 ```
   40.54ms     0.01ms    2155031916  cap 0  CLIENT start CREATE
   ---         ---       2195576184  cap 0  HANDLER start CREATE
+```
+
+### Thread labels
+
+We take `ThreadLabel` events into account and use them to show thread IDs
+whenever possible. Moreover, when threads are created, we will look ahead
+(limited by the `--max-lookahead` command line parameter) to see if we can
+find a thread label for that thread. This results in snippets such as this:
+
+```
+   0.00ms    2155038086  cap 0  creating thread 138 "grapesy:clientInbound"
+   0.00ms    2155044566  cap 0  running thread 138 "grapesy:clientInbound"
+   0.00ms    2155045636  cap 0  thread 138 has label "grapesy:clientInbound"
+   0.00ms    2155049206  cap 0  stopping thread 138 "grapesy:clientInbound" (thread yielding)
+   0.00ms    2155050866  cap 0  running thread 138 "grapesy:clientInbound"
+   0.00ms    2155055516  cap 0  stopping thread 138 "grapesy:clientInbound" (blocked in STM retry)
+   0.00ms    2155058476  cap 0  waking up thread 138 "grapesy:clientInbound" on cap 0
+...
+   0.01ms    2287584148  cap 0  stopping thread 138 "grapesy:clientInbound" (thread finished)
 ```
 
 ### Incrementality

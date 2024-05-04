@@ -15,7 +15,7 @@ showDelta cmdline padding filters = do
     (header, events) <- readEventLogIncremental (cmdInput cmdline)
 
     let withInfo :: [ Decorated '[ '("eventInfo", Text) ] Event ]
-        withInfo = addEventInfo' header $
+        withInfo = addEventInfo header (cmdMaxLookahead cmdline) $
                      if cmdSort cmdline
                        then sortEvents events
                        else events

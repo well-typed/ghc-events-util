@@ -5,7 +5,6 @@ module GHC.RTS.Events.Util (
   , Decorated(..)
     -- ** with event info
   , addEventInfo
-  , addEventInfo'
     -- ** with Deltas (timestamp differences)
   , Delta(..)
   , computeDelta

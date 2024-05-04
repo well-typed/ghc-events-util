@@ -16,10 +16,11 @@ import System.IO
 -------------------------------------------------------------------------------}
 
 data Cmdline = Cmdline {
-      cmdInput   :: FilePath
-    , cmdOutput  :: Maybe FilePath
-    , cmdSort    :: Bool
-    , cmdCommand :: Command
+      cmdInput        :: FilePath
+    , cmdOutput       :: Maybe FilePath
+    , cmdSort         :: Bool
+    , cmdMaxLookahead :: Int
+    , cmdCommand      :: Command
     }
   deriving (Show)
 
@@ -61,6 +62,12 @@ parseCmdline =
       <*> (switch $ mconcat [
               long "sort-events"
             , help "Sort events before processing (this means processing is no longer incremental)"
+            ])
+      <*> (option auto $ mconcat [
+              long "max-lookahead"
+            , help "Maximum lookahead (used to look for thread labels for newly created thrads)"
+            , showDefault
+            , value 100
             ])
       <*> parseCommand
 
