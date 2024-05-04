@@ -8,6 +8,7 @@ module GHC.RTS.Events.Util.Padding (
   , showDecoratedEvents
   ) where
 
+import Data.Maybe (fromMaybe)
 import Data.Proxy
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -22,10 +23,12 @@ import GHC.RTS.Events.Util.Delta
 -------------------------------------------------------------------------------}
 
 -- | Padding (in characters) for the fields
+--
+-- 'Nothing' indicates the corresponding field should be skipped.
 data Padding = Padding {
-      padDelta     :: Int
-    , padTimestamp :: Int
-    , padCap       :: Int
+      padDelta     :: Maybe Int
+    , padTimestamp :: Maybe Int
+    , padCap       :: Maybe Int
     }
   deriving (Show)
 
@@ -60,8 +63,8 @@ class ApplyPadding a where
 
 instance ApplyPadding (Decorated '[ '("eventInfo", Text) ] Event) where
   computeTotalPadding padding _ = sum [
-        padTimestamp padding
-      , padCap padding
+        fromMaybe 0 $ padTimestamp padding
+      , fromMaybe 0 $ padCap padding
       ]
   applyPadding padding totalPadding (DecorateWith eventInfo (Undecorated e)) = mconcat $
         ( padTo (padTimestamp padding) $
@@ -75,7 +78,7 @@ instance ApplyPadding (Decorated '[ '("eventInfo", Text) ] Event) where
 instance ApplyPadding (Decorated ds a)
       => ApplyPadding (Decorated ('(s, Delta) : ds) a) where
   computeTotalPadding padding _ = sum [
-        padDelta padding
+        fromMaybe 0 $ padDelta padding
       , computeTotalPadding padding (Proxy @(Decorated ds a))
       ]
   applyPadding padding totalPadding (DecorateWith d a) =
@@ -103,8 +106,9 @@ instance ApplyPadding (Decorated ds a)
   Internal auxiliary
 -------------------------------------------------------------------------------}
 
-padTo :: Int -> String -> Text
-padTo p s = Text.pack $ s ++ replicate (p - length s) ' '
+padTo :: Maybe Int -> String -> Text
+padTo Nothing  _ = mempty
+padTo (Just p) s = Text.pack $ s ++ replicate (p - length s) ' '
 
 -- | Simulation of vim's \"autoindent\"
 --

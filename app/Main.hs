@@ -11,4 +11,4 @@ main :: IO ()
 main = do
     cmdline <- getCmdline
     case cmdCommand cmdline of
-      ShowDelta padding filters -> showDelta cmdline padding filters
+      ShowDelta -> showDelta cmdline

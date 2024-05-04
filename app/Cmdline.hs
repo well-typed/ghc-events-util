@@ -16,11 +16,13 @@ import System.IO
 -------------------------------------------------------------------------------}
 
 data Cmdline = Cmdline {
-      cmdInput        :: FilePath
-    , cmdOutput       :: Maybe FilePath
+      cmdOutput       :: Maybe FilePath
     , cmdSort         :: Bool
     , cmdMaxLookahead :: Int
+    , cmdPadding      :: Padding
+    , cmdFilters      :: Filters
     , cmdCommand      :: Command
+    , cmdInput        :: FilePath
     }
   deriving (Show)
 
@@ -31,7 +33,7 @@ withCmdOutputHandle Cmdline{cmdOutput} k =
       Just fp -> withFile fp WriteMode $ k
 
 data Command =
-    ShowDelta Padding Filters
+    ShowDelta
   deriving (Show)
 
 {-------------------------------------------------------------------------------
@@ -53,8 +55,7 @@ getCmdline = execParser opts
 parseCmdline :: Parser Cmdline
 parseCmdline =
     Cmdline
-      <$> argument str (metavar "FILE")
-      <*> (optional $ strOption $ mconcat [
+      <$> (optional $ strOption $ mconcat [
                short 'o'
              , metavar "FILE"
              , help "Write output to a file"
@@ -69,33 +70,39 @@ parseCmdline =
             , showDefault
             , value 100
             ])
+      <*> parsePadding
+      <*> parseFilters
       <*> parseCommand
+      <*> argument str (metavar "FILE")
 
 parseCommand :: Parser Command
 parseCommand = subparser $ mconcat [
-      cmd "show-delta" parseShowDelta $
+      cmd "show-delta" (pure ShowDelta) $
         "Pretty print an event log, showing time intervals between events"
     ]
   where
     cmd :: String -> Parser Command -> String -> Mod CommandFields Command
     cmd l p d = command l $ info (p <**> helper) (progDesc d)
 
-parseShowDelta :: Parser Command
-parseShowDelta = ShowDelta <$> parsePadding <*> parseFilters
-
 parsePadding :: Parser Padding
 parsePadding =
     Padding
-      <$> parsePaddingFor "delta" 11
-      <*> parsePaddingFor "time"  14
-      <*> parsePaddingFor "cap"   7
+      <$> parsePaddingFor "delta"     11
+      <*> parsePaddingFor "timestamp" 14
+      <*> parsePaddingFor "cap"       7
 
-parsePaddingFor :: String -> Int -> Parser Int
-parsePaddingFor field def = option auto $ mconcat [
-      long $ "pad-" ++ field
-    , help $ " Set padding for field " ++ show field
-    , showDefault
-    , value def
+parsePaddingFor :: String -> Int -> Parser (Maybe Int)
+parsePaddingFor field def = asum [
+      flag' Nothing $ mconcat [
+          long $ "skip-" ++ field
+        , help $ "Omit field " ++ show field
+        ]
+    , fmap Just $ option auto $ mconcat [
+          long $ "pad-" ++ field
+        , help $ " Set padding for field " ++ show field
+        , showDefault
+        , value def
+        ]
     ]
 
 parseFilters :: Parser Filters

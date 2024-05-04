@@ -54,15 +54,15 @@ whenever possible. Moreover, when threads are created, we will look ahead
 find a thread label for that thread. This results in snippets such as this:
 
 ```
-   0.00ms    2155038086  cap 0  creating thread 138 "grapesy:clientInbound"
-   0.00ms    2155044566  cap 0  running thread 138 "grapesy:clientInbound"
-   0.00ms    2155045636  cap 0  thread 138 has label "grapesy:clientInbound"
-   0.00ms    2155049206  cap 0  stopping thread 138 "grapesy:clientInbound" (thread yielding)
-   0.00ms    2155050866  cap 0  running thread 138 "grapesy:clientInbound"
-   0.00ms    2155055516  cap 0  stopping thread 138 "grapesy:clientInbound" (blocked in STM retry)
-   0.00ms    2155058476  cap 0  waking up thread 138 "grapesy:clientInbound" on cap 0
+   0.00ms    cap 0  creating thread 138 "grapesy:clientInbound"
+   0.00ms    cap 0  running thread 138 "grapesy:clientInbound"
+   0.00ms    cap 0  thread 138 has label "grapesy:clientInbound"
+   0.00ms    cap 0  stopping thread 138 "grapesy:clientInbound" (thread yielding)
+   0.00ms    cap 0  running thread 138 "grapesy:clientInbound"
+   0.00ms    cap 0  stopping thread 138 "grapesy:clientInbound" (blocked in STM retry)
+   0.00ms    cap 0  waking up thread 138 "grapesy:clientInbound" on cap 0
 ...
-   0.01ms    2287584148  cap 0  stopping thread 138 "grapesy:clientInbound" (thread finished)
+   0.01ms    cap 0  stopping thread 138 "grapesy:clientInbound" (thread finished)
 ```
 
 ### Incrementality

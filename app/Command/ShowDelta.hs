@@ -10,13 +10,19 @@ import Data.Text (Text)
   Command: 'ShowDelta'
 -------------------------------------------------------------------------------}
 
-showDelta :: Cmdline -> Padding -> Filters -> IO ()
-showDelta cmdline padding filters = do
-    (header, events) <- readEventLogIncremental (cmdInput cmdline)
+showDelta :: Cmdline -> IO ()
+showDelta cmdline@Cmdline{
+              cmdInput
+            , cmdMaxLookahead
+            , cmdSort
+            , cmdFilters
+            , cmdPadding
+            } = do
+    (header, events) <- readEventLogIncremental cmdInput
 
     let withInfo :: [ Decorated '[ '("eventInfo", Text) ] Event ]
-        withInfo = addEventInfo header (cmdMaxLookahead cmdline) $
-                     if cmdSort cmdline
+        withInfo = addEventInfo header cmdMaxLookahead $
+                     if cmdSort
                        then sortEvents events
                        else events
 
@@ -28,18 +34,18 @@ showDelta cmdline padding filters = do
           ]
         withDelta = computeDelta (Proxy @"realDelta") withInfo
 
-    if allFiltersDisabled filters then
+    if allFiltersDisabled cmdFilters then
       withCmdOutputHandle cmdline $ \h ->
-        mapM_ (Text.hPutStrLn h) $ showDecoratedEvents padding withDelta
+        mapM_ (Text.hPutStrLn h) $ showDecoratedEvents cmdPadding withDelta
     else do
-      -- Apply user-specified filters, but leave the CapDelete events, so that
+      -- Apply user-specified cmdFilters, but leave the CapDelete events, so that
       -- we have a final event to compute deltas against.
       let filtered ::
             [ Decorated '[ '("realDelta", Delta)
                          , '("eventInfo", Text)
                          ] Event
             ]
-          filtered = filter (filterEvent filters) withDelta
+          filtered = filter (filterEvent cmdFilters) withDelta
 
       -- Compute new deltas, now between the /shown/ events
       let withShownDelta ::
@@ -51,4 +57,4 @@ showDelta cmdline padding filters = do
           withShownDelta = computeDelta (Proxy @"shownDelta") filtered
 
       withCmdOutputHandle cmdline $ \h ->
-        mapM_ (Text.hPutStrLn h) $ showDecoratedEvents padding withShownDelta
+        mapM_ (Text.hPutStrLn h) $ showDecoratedEvents cmdPadding withShownDelta
