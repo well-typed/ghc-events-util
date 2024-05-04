@@ -1,7 +1,7 @@
 module Main (main) where
 
-import GhcEventsUtil.Cmdline
-import GhcEventsUtil.Command.ShowDelta (showDelta)
+import Cmdline
+import Command.ShowDelta (showDelta)
 
 {-------------------------------------------------------------------------------
   Top-level

@@ -1,15 +1,15 @@
-module GhcEventsUtil.Cmdline (
+module Cmdline (
     Cmdline(..)
   , Command(..)
   , Padding(..)
   , Filters(..)
   , getCmdline
+  , withCmdOutputHandle
   ) where
 
+import GHC.RTS.Events.Util (Padding(..), Filters(..))
 import Options.Applicative
-
-import GhcEventsUtil.Regex qualified as Regex
-import GhcEventsUtil.Filters (Filters(..))
+import System.IO
 
 {-------------------------------------------------------------------------------
   Definition
@@ -17,22 +17,20 @@ import GhcEventsUtil.Filters (Filters(..))
 
 data Cmdline = Cmdline {
       cmdInput   :: FilePath
+    , cmdOutput  :: Maybe FilePath
+    , cmdSort    :: Bool
     , cmdCommand :: Command
     }
   deriving (Show)
 
+withCmdOutputHandle :: Cmdline -> (Handle -> IO a) -> IO a
+withCmdOutputHandle Cmdline{cmdOutput} k =
+    case cmdOutput of
+      Nothing -> k stdout
+      Just fp -> withFile fp WriteMode $ k
+
 data Command =
     ShowDelta Padding Filters
-  deriving (Show)
-
--- | Padding (in characters) for the fields
---
--- 'Nothing' indicates a field should be be skipped.
-data Padding = Padding {
-      padDelta :: Maybe Int
-    , padTime  :: Maybe Int
-    , padCap   :: Maybe Int
-    }
   deriving (Show)
 
 {-------------------------------------------------------------------------------
@@ -55,6 +53,15 @@ parseCmdline :: Parser Cmdline
 parseCmdline =
     Cmdline
       <$> argument str (metavar "FILE")
+      <*> (optional $ strOption $ mconcat [
+               short 'o'
+             , metavar "FILE"
+             , help "Write output to a file"
+             ])
+      <*> (switch $ mconcat [
+              long "sort-events"
+            , help "Sort events before processing (this means processing is no longer incremental)"
+            ])
       <*> parseCommand
 
 parseCommand :: Parser Command
@@ -76,18 +83,12 @@ parsePadding =
       <*> parsePaddingFor "time"  14
       <*> parsePaddingFor "cap"   7
 
-parsePaddingFor :: String -> Int -> Parser (Maybe Int)
-parsePaddingFor field def = asum [
-      flag' Nothing $ mconcat [
-          long $ "skip-" ++ field
-        , help $ "Omit field " ++ show field
-        ]
-    , fmap Just $ option auto $ mconcat [
-          long $ "pad-" ++ field
-        , help $ " Set padding for field " ++ show field
-        , showDefault
-        , value def
-        ]
+parsePaddingFor :: String -> Int -> Parser Int
+parsePaddingFor field def = option auto $ mconcat [
+      long $ "pad-" ++ field
+    , help $ " Set padding for field " ++ show field
+    , showDefault
+    , value def
     ]
 
 parseFilters :: Parser Filters
@@ -101,7 +102,7 @@ parseFilters =
                long "show-until"
              , help "Timestamp of the last event to show"
              ])
-      <*> (optional $ fmap Regex.compile $ strOption $ mconcat [
+      <*> (optional $ strOption $ mconcat [
                long "match"
              , help "Only show events that match"
              , metavar "REGEX"

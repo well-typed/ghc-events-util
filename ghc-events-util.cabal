@@ -11,6 +11,16 @@ build-type:         Simple
 common lang
   default-language:
       GHC2021
+  default-extensions:
+      DataKinds
+      DeriveAnyClass
+      DerivingStrategies
+      GADTs
+      LambdaCase
+      PatternSynonyms
+      TypeFamilies
+      UndecidableInstances
+      ViewPatterns
   ghc-options:
       -Wall
       -Wredundant-constraints
@@ -18,7 +28,29 @@ common lang
       -Wprepositive-qualified-module
       -Widentities
   build-depends:
-      base >= 4.16 && < 4.17
+      -- ghc 9.8
+      base >= 4.19 && < 4.20
+
+library
+  import:
+      lang
+  exposed-modules:
+      GHC.RTS.Events.Util
+  other-modules:
+      GHC.RTS.Events.Util.Decorated
+      GHC.RTS.Events.Util.Delta
+      GHC.RTS.Events.Util.EventInfo
+      GHC.RTS.Events.Util.Filter
+      GHC.RTS.Events.Util.Incremental
+      GHC.RTS.Events.Util.Padding
+  hs-source-dirs:
+      src
+  build-depends:
+    , bytestring
+    , containers
+    , ghc-events
+    , regex-pcre
+    , text
 
 executable ghc-events-util
   import:
@@ -26,14 +58,11 @@ executable ghc-events-util
   main-is:
       Main.hs
   other-modules:
-      GhcEventsUtil.Cmdline
-      GhcEventsUtil.Command.ShowDelta
-      GhcEventsUtil.Filters
-      GhcEventsUtil.Regex
+      Cmdline
+      Command.ShowDelta
   hs-source-dirs:
       app
   build-depends:
-    , containers
-    , ghc-events
+    , ghc-events-util
     , optparse-applicative
-    , regex-pcre
+    , text

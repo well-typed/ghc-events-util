@@ -2,45 +2,81 @@
 
 ## `show-delta`
 
-Suppose we are debugging an application which contains (in one application)
-both a server and a client, and we are debugging occassional long delays between
-the client initiating the request and the handler responding. Provided we
-add suitable user events into the evnet long, we can use `ghc-events-util`
-to debug this. First, run
+### Introduction
+
+This shows the time difference (delta) between events, as a way to estimate
+how long events take. For example, here is a snippet from an eventlog shown
+with `show-delta` without any additional arguments:
 
 ```
-cabal run ghc-events-util -- myapp.eventlog \
-  show-delta --match 'handler|client'
+   0.16ms        965591  cap 0  stopping thread 5 (making a foreign call)
+   ---          1121209  cap 0  running thread 5
 ```
 
-This will give us events from the eventlog, along with the time of that event
-(computed by taking a difference to the previous event on the same capability).
-For example, we might see
+The `stopping` event takes place at timestamp `965591`, and the event at
+timestamp `1121209`; we can therefore estimate that the thread was stopped for
+`1121209 - 965591 == 155618ns`, or roughly `0.16ms`.
+
+For each event we compute the time from that event to the next event _on the
+same capability_.
+
+### Filtering
+
+Suppose we have an eventlog of an application containing a server and a client,
+and we are interested in the time it takes from the moment that the client
+initiates a request and the handler starts the response. Assuming that we have
+added the appropriate user events into the eventlog
+(see [traceEventIO](https://hackage.haskell.org/package/base-4.19.1.0/docs/Debug-Trace.html#v:traceEventIO)), the eventlog might contain something like
 
 ```
-   0.02ms     0.02ms    1097133660  cap 0  client start CREATE
-   0.67ms     0.00ms    1097807455  cap 0  handler start CREATE
+   0.01ms    2155031916  cap 0  CLIENT start CREATE
+   0.00ms    2155038086  cap 0  creating thread 138
+..
+.. many more events
+..
+   ---       2195576184  cap 0  HANDLER start CREATE
 ```
 
-and occassionally
+We can pass `--match 'CLIENT|HANDLER'` to `ghc-events-util` to only show the
+events we are interested in. When we do, we get an _additional_ delta which
+shows the time interval between the _shown_ events only:
 
 ```
-   0.00ms     0.00ms    2549430454  cap 0  client start CREATE
-  43.90ms     0.01ms    2593331769  cap 0  handler start CREATE
+  40.54ms     0.01ms    2155031916  cap 0  CLIENT start CREATE
+  ---         ---       2195576184  cap 0  HANDLER start CREATE
 ```
 
-which includes the aforementioned long day. The first two columns here are the
-time difference to the previous _shown_ event (in this case, the `client start`)
-and the time difference to the _actual_ previous event (which gives an answer
-to how long that previous event actually took).
+### Incrementality
 
-We can then inspect the relevant parts of the eventlog with, say
+In order to be able to handle large eventlogs, `ghc-events-util` is carefully
+written so that we process eventlogs in constant memory. For example, processing
+a 10MB eventlog (with filtering) results in RTS stats
 
 ```
-cabal run ghc-events-util -- myapp.eventlog \
-  show-delta --show-from 1097133660 --show-until 1097807455
+   1,599,063,888 bytes allocated in the heap
+       5,922,936 bytes copied during GC
+         210,328 bytes maximum residency (17 sample(s))
+          40,032 bytes maximum slop
+               7 MiB total memory in use (0 MiB lost due to fragmentation)
+
+                                     Tot time (elapsed)  Avg pause  Max pause
+  Gen  0       363 colls,     0 par    0.004s   0.004s     0.0000s    0.0006s
+  Gen  1        17 colls,     0 par    0.002s   0.002s     0.0001s    0.0002s
+
+  INIT    time    0.000s  (  0.000s elapsed)
+  MUT     time    0.437s  (  0.436s elapsed)
+  GC      time    0.006s  (  0.006s elapsed)
+  EXIT    time    0.000s  (  0.000s elapsed)
+  Total   time    0.443s  (  0.443s elapsed)
+
+  %GC     time       0.0%  (0.0% elapsed)
+
+  Alloc rate    3,661,983,239 bytes per MUT second
+
+  Productivity  98.5% of total user, 98.5% of total elapsed
 ```
 
-See also the
-[trace-foreign-calls](https://github.com/well-typed/trace-foreign-calls)
-plugin for adding information into the eventlog about foreign calls.
+## Other useful tools
+
+The [trace-foreign-calls](https://github.com/well-typed/trace-foreign-calls)
+plugin can be used for adding information into the eventlog about foreign calls.
