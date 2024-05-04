@@ -12,6 +12,8 @@ module GHC.RTS.Events.Util.Filter (
 import Data.Maybe (isNothing)
 import Data.Proxy
 import Data.String
+import Data.Text (Text)
+import Data.Text qualified as Text
 import GHC.RTS.Events
 import GHC.Show (appPrec)
 import Text.Regex.PCRE qualified as PCRE
@@ -52,8 +54,8 @@ instance IsString Regex where
       , regexCompiled = PCRE.makeRegex regexString
       }
 
-matchTest :: Regex -> String -> Bool
-matchTest Regex{regexCompiled} = PCRE.matchTest regexCompiled
+matchTest :: Regex -> Text -> Bool
+matchTest Regex{regexCompiled} = PCRE.matchTest regexCompiled . Text.unpack
 
 {-------------------------------------------------------------------------------
   API
@@ -71,7 +73,7 @@ allFiltersDisabled filters = and [
 -- For 'CapDelete' events we always return 'True' so that we leave those events
 -- to compute the final delta. See 'filterCapDelete'.
 filterEvent ::
-     HasDecoration "eventInfo" ds String
+     HasDecoration "eventInfo" ds Text
   => Filters -> Decorated ds Event -> Bool
 filterEvent filters d = or [
       case evSpec e of
@@ -87,5 +89,5 @@ filterEvent filters d = or [
     e :: Event
     e = stripDecoration d
 
-    eventInfo :: String
+    eventInfo :: Text
     eventInfo = getDecoration (Proxy @"eventInfo") d

@@ -4,6 +4,7 @@ import Data.Text.IO qualified as Text
 import GHC.RTS.Events.Util
 
 import Cmdline
+import Data.Text (Text)
 
 {-------------------------------------------------------------------------------
   Command: 'ShowDelta'
@@ -13,7 +14,7 @@ showDelta :: Cmdline -> Padding -> Filters -> IO ()
 showDelta cmdline padding filters = do
     (header, events) <- readEventLogIncremental (cmdInput cmdline)
 
-    let withInfo :: [ Decorated '[ '("eventInfo", String) ] Event ]
+    let withInfo :: [ Decorated '[ '("eventInfo", Text) ] Event ]
         withInfo = addEventInfo' header $
                      if cmdSort cmdline
                        then sortEvents events
@@ -22,7 +23,7 @@ showDelta cmdline padding filters = do
     -- We compute the real delta before doing any filtering
     let withDelta ::
           [ Decorated '[ '("realDelta", Delta)
-                       , '("eventInfo", String)
+                       , '("eventInfo", Text)
                        ] Event
           ]
         withDelta = computeDelta (Proxy @"realDelta") withInfo
@@ -35,7 +36,7 @@ showDelta cmdline padding filters = do
       -- we have a final event to compute deltas against.
       let filtered ::
             [ Decorated '[ '("realDelta", Delta)
-                         , '("eventInfo", String)
+                         , '("eventInfo", Text)
                          ] Event
             ]
           filtered = filter (filterEvent filters) withDelta
@@ -44,7 +45,7 @@ showDelta cmdline padding filters = do
       let withShownDelta ::
             [ Decorated '[ '("shownDelta", Delta)
                          , '("realDelta", Delta)
-                         , '("eventInfo", String)
+                         , '("eventInfo", Text)
                          ] Event
             ]
           withShownDelta = computeDelta (Proxy @"shownDelta") filtered

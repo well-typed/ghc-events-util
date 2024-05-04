@@ -58,18 +58,19 @@ class ApplyPadding a where
   computeTotalPadding :: Padding -> Proxy a -> TotalPadding
   applyPadding :: Padding -> TotalPadding -> a -> Text
 
-instance ApplyPadding (Decorated '[ '("eventInfo", String) ] Event) where
+instance ApplyPadding (Decorated '[ '("eventInfo", Text) ] Event) where
   computeTotalPadding padding _ = sum [
         padTimestamp padding
       , padCap padding
       ]
-  applyPadding padding totalPadding (DecorateWith eventInfo (Undecorated e)) = mconcat [
-        padTo (padTimestamp padding) $
-          printf "%12d" (evTime e)
-      , padTo (padCap padding) $
-           maybe "" (\c -> "cap " ++ show c) (evCap e)
-      , Text.pack $ autoIndent totalPadding eventInfo
-      ]
+  applyPadding padding totalPadding (DecorateWith eventInfo (Undecorated e)) = mconcat $
+        ( padTo (padTimestamp padding) $
+            printf "%12d" (evTime e)
+        )
+      : ( padTo (padCap padding) $
+            maybe "" (\c -> "cap " ++ show c) (evCap e)
+        )
+      : autoIndent totalPadding eventInfo
 
 instance ApplyPadding (Decorated ds a)
       => ApplyPadding (Decorated ('(s, Delta) : ds) a) where
@@ -108,9 +109,12 @@ padTo p s = Text.pack $ s ++ replicate (p - length s) ' '
 -- | Simulation of vim's \"autoindent\"
 --
 -- Each new line starts at the current column
-autoIndent :: Int -> String -> String
-autoIndent n = concatMap aux
+autoIndent :: Int -> Text -> [Text]
+autoIndent n = zipWith addPadding [0..] . Text.lines
   where
-    aux :: Char -> [Char]
-    aux '\n' = "\n" ++ replicate n ' '
-    aux c    = [c]
+    addPadding :: Int -> Text -> Text
+    addPadding 0 t = t  -- don't add padding to the first line
+    addPadding _ t = padding <> t
+
+    padding :: Text
+    padding = Text.pack $ replicate n ' '
