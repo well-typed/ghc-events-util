@@ -18,6 +18,7 @@ import System.IO
 data Cmdline = Cmdline {
       cmdOutput       :: Maybe FilePath
     , cmdSort         :: Bool
+    , cmdResIsCap     :: Bool
     , cmdMaxLookahead :: Int
     , cmdPadding      :: Padding
     , cmdFilters      :: Filters
@@ -64,6 +65,10 @@ parseCmdline =
               long "sort-events"
             , help "Sort events before processing (this means processing is no longer incremental)"
             ])
+      <*> (switch $ mconcat [
+              long "res-is-cap"
+            , help "Re-interpret the 'residency' field in heap samples as the capability instead (for use with trace-foreign-calls)"
+            ])
       <*> (option auto $ mconcat [
               long "max-lookahead"
             , help "Maximum lookahead (used to look for thread labels for newly created thrads)"
@@ -87,23 +92,31 @@ parseCommand = subparser $ mconcat [
 parsePadding :: Parser Padding
 parsePadding =
     Padding
-      <$> parsePaddingFor "delta"     11
-      <*> parsePaddingFor "timestamp" 14
-      <*> parsePaddingFor "cap"       7
+      <$> parsePaddingFor "delta"     (Just 11)
+      <*> parsePaddingFor "timestamp" (Just 14)
+      <*> parsePaddingFor "cap"       (Just 7)
+      <*> parsePaddingFor "raw"       Nothing
 
-parsePaddingFor :: String -> Int -> Parser (Maybe Int)
-parsePaddingFor field def = asum [
+parsePaddingFor :: String -> Maybe Int -> Parser (Maybe Int)
+parsePaddingFor field (Just def) = asum [
       flag' Nothing $ mconcat [
-          long $ "skip-" ++ field
-        , help $ "Omit field " ++ show field
+          long $ "hide-" ++ field
+        , help $ "Hide field " ++ show field
         ]
     , fmap Just $ option auto $ mconcat [
           long $ "pad-" ++ field
-        , help $ " Set padding for field " ++ show field
+        , help $ "Set padding for field " ++ show field
         , showDefault
         , value def
+        , metavar "PADDING"
         ]
     ]
+parsePaddingFor field Nothing =
+    optional $ option auto $ mconcat [
+        long $ "show-" ++ field
+      , help $ "Show field " ++ show field
+      , metavar "PADDING"
+      ]
 
 parseFilters :: Parser Filters
 parseFilters =

@@ -4,10 +4,13 @@ module GHC.RTS.Events.Util.EventInfo (
     addEventInfo
   ) where
 
+import Data.Bits (testBit)
 import Data.IntMap.Strict (IntMap)
 import Data.IntMap.Strict qualified as IntMap
 import Data.Text (Text)
 import Data.Text.Lazy qualified as Text.Lazy
+import Data.Vector.Unboxed qualified as VU
+import Data.Word
 import GHC.RTS.Events
 
 -- Match the imports in GHC.RTS.Events, so that we can easily copy/paste cases
@@ -15,6 +18,7 @@ import Data.Text.Lazy.Builder qualified as TB
 import Data.Text.Lazy.Builder.Int qualified as TB
 
 import GHC.RTS.Events.Util.Decorated
+import Data.List (intersperse)
 
 {-------------------------------------------------------------------------------
   Main definitions
@@ -25,24 +29,31 @@ addEventInfo ::
   -> Int    -- ^ Max look-ahead (looking for labels for new threads)
   -> [Event]
   -> [Decorated '[ '("eventInfo", Text) ] Event]
-addEventInfo header maxLookahead = loop IntMap.empty
+addEventInfo header maxLookahead =
+    loop IntMap.empty IntMap.empty
   where
     imap :: IntMap EventType
     imap = buildEventTypeMap $ eventTypes header
 
-    loop :: ThreadLabels -> [Event] -> [Decorated '[ '("eventInfo", Text)] Event]
-    loop _            []     = []
-    loop threadLabels (e:es) =
+    loop ::
+         ThreadLabels
+      -> CostCentres
+      -> [Event] -> [Decorated '[ '("eventInfo", Text)] Event]
+    loop _            _           []     = []
+    loop threadLabels costCentres (e:es) =
           addDecoration' eventInfo (undecorated e)
-        : loop (dropFinishedThreads e threadLabels') es
+        : loop (dropFinishedThreads e threadLabels') costCentres' es
       where
         threadLabels' :: ThreadLabels
         threadLabels' = updateThreadLabels e (take maxLookahead es) threadLabels
 
+        costCentres' :: CostCentres
+        !costCentres' = updateCostCentres e costCentres
+
         eventInfo :: Text
         eventInfo =
             Text.Lazy.toStrict . TB.toLazyText $
-              buildEventInfoWith imap threadLabels' e
+              buildEventInfoWith imap threadLabels' costCentres e
 
 {-------------------------------------------------------------------------------
   Thread labels
@@ -84,17 +95,50 @@ dropFinishedThreads e =
         id
 
 {-------------------------------------------------------------------------------
+  Cost centres
+-------------------------------------------------------------------------------}
+
+type CostCentres = IntMap Text
+
+updateCostCentres :: Event -> CostCentres -> CostCentres
+updateCostCentres e =
+    case evSpec e of
+      HeapProfCostCentre{
+          heapProfCostCentreId
+        , heapProfLabel
+        , heapProfModule
+        , heapProfSrcLoc
+        , heapProfFlags
+        } ->
+        -- Adapted from 'buildEventInfo', omitting the cost centre iD
+        let desc :: Text
+            desc = Text.Lazy.toStrict . TB.toLazyText $
+                 TB.fromText heapProfLabel
+                <> " in " <> TB.fromText heapProfModule
+                <> " at " <> TB.fromText heapProfSrcLoc
+                <> if isCaf heapProfFlags then " CAF" else ""
+         in IntMap.insert (fromIntegral heapProfCostCentreId) desc
+      _otherwise -> id
+
+{-------------------------------------------------------------------------------
   Build event info
 -------------------------------------------------------------------------------}
 
 -- | Build event info
 --
--- We override all cases that involve thread IDs, so that we can show the thread
--- label. For the remainder of the remainders we default to 'showEventInfo', so
--- that this should continue to work without changes even if new events are
--- added.
-buildEventInfoWith :: IntMap EventType -> ThreadLabels -> Event -> TB.Builder
-buildEventInfoWith imap threadLabels e =
+-- We override all cases that involve
+--
+-- * thread IDs (so that we can show the thread label)
+-- * cost centre IDs (so that we can show the full cost centre stack)
+--
+-- For the remainder of the remainders we default to 'showEventInfo', so that
+-- this should continue to work without changes even if new events are added.
+buildEventInfoWith ::
+     IntMap EventType
+  -> ThreadLabels
+  -> CostCentres
+  -> Event -> TB.Builder
+buildEventInfoWith imap threadLabels costCentres e =
     case evSpec e of
       -- user events
       UnknownEvent{ref} ->
@@ -157,6 +201,13 @@ buildEventInfoWith imap threadLabels e =
           <> " to process " <> TB.decimal receiverProcess
           <> " on inport " <> TB.decimal receiverInport
 
+      -- perf events
+      HeapProfSampleCostCentre{heapProfId, heapProfResidency, heapProfStack} ->
+        "heap prof sample " <> TB.decimal heapProfId
+        <> ", residency " <> TB.decimal heapProfResidency
+        <> ", cost centre stack:\n"
+        <> buildCostCentreStack costCentres heapProfStack
+
       -- default to 'buildEventInfo'
       info ->
         buildEventInfo info
@@ -171,3 +222,20 @@ buildEventInfoWith imap threadLabels e =
             , TB.fromText label
             , "\""
             ]
+
+{-------------------------------------------------------------------------------
+  Auxiliary
+-------------------------------------------------------------------------------}
+
+-- | Copied from "GHC.RTS.EventTypes" (unfortunately not exported)
+isCaf :: HeapProfFlags -> Bool
+isCaf (HeapProfFlags w8) = testBit w8 0
+
+buildCostCentreStack :: CostCentres -> VU.Vector Word32 -> TB.Builder
+buildCostCentreStack costCentres =
+      mconcat . intersperse "\n" . map aux . VU.toList
+  where
+    aux :: Word32 -> TB.Builder
+    aux ccid =
+        maybe (TB.decimal ccid) TB.fromText $
+          IntMap.lookup (fromIntegral ccid) costCentres

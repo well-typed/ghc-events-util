@@ -51,6 +51,7 @@ library
     , ghc-events
     , regex-pcre
     , text
+    , vector
 
 executable ghc-events-util
   import:

@@ -65,6 +65,12 @@ find a thread label for that thread. This results in snippets such as this:
    0.01ms    cap 0  stopping thread 138 "grapesy:clientInbound" (thread finished)
 ```
 
+### Cost centre stacks
+
+Similar to thread labels, we also take `HeapProfCostCentre` events into account
+so that we can show cost centre stacks in human readable form (rather than a
+list of call centre IDs).
+
 ### Incrementality
 
 In order to be able to handle large eventlogs, `ghc-events-util` is carefully

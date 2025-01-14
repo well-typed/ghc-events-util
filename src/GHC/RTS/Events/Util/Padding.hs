@@ -5,7 +5,10 @@
 -- Intended for unqualified import.
 module GHC.RTS.Events.Util.Padding (
     Padding(..)
+  , ApplyPadding(..)
   , showDecoratedEvents
+    -- * Auxiliary
+  , padTo
   ) where
 
 import Data.Maybe (fromMaybe)
@@ -26,9 +29,10 @@ import GHC.RTS.Events.Util.Delta
 --
 -- 'Nothing' indicates the corresponding field should be skipped.
 data Padding = Padding {
-      padDelta     :: Maybe Int
-    , padTimestamp :: Maybe Int
-    , padCap       :: Maybe Int
+      padDelta        :: Maybe Int
+    , padTimestamp    :: Maybe Int
+    , padCap          :: Maybe Int
+    , padRawEventType :: Maybe Int
     }
   deriving (Show)
 
@@ -66,14 +70,13 @@ instance ApplyPadding (Decorated '[ '("eventInfo", Text) ] Event) where
         fromMaybe 0 $ padTimestamp padding
       , fromMaybe 0 $ padCap padding
       ]
-  applyPadding padding totalPadding (DecorateWith eventInfo (Undecorated e)) = mconcat $
-        ( padTo (padTimestamp padding) $
-            printf "%12d" (evTime e)
-        )
-      : ( padTo (padCap padding) $
-            maybe "" (\c -> "cap " ++ show c) (evCap e)
-        )
-      : autoIndent totalPadding eventInfo
+  applyPadding padding totalPadding (DecorateWith eventInfo (Undecorated e)) = mconcat [
+        padTo (padTimestamp padding) $
+          printf "%12d" (evTime e)
+      , padTo (padCap padding) $
+          maybe "" (\c -> "cap " ++ show c) (evCap e)
+      , autoIndent totalPadding eventInfo
+      ]
 
 instance ApplyPadding (Decorated ds a)
       => ApplyPadding (Decorated ('(s, Delta) : ds) a) where
@@ -103,7 +106,7 @@ instance ApplyPadding (Decorated ds a)
           ms = fromIntegral ns / 1_000_000
 
 {-------------------------------------------------------------------------------
-  Internal auxiliary
+  Auxiliary
 -------------------------------------------------------------------------------}
 
 padTo :: Maybe Int -> String -> Text
@@ -113,8 +116,9 @@ padTo (Just p) s = Text.pack $ s ++ replicate (p - length s) ' '
 -- | Simulation of vim's \"autoindent\"
 --
 -- Each new line starts at the current column
-autoIndent :: Int -> Text -> [Text]
-autoIndent n = zipWith addPadding [0..] . Text.lines
+autoIndent :: Int -> Text -> Text
+autoIndent n =
+    Text.intercalate "\n" . zipWith addPadding [0..] . Text.lines
   where
     addPadding :: Int -> Text -> Text
     addPadding 0 t = t  -- don't add padding to the first line

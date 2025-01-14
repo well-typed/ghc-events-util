@@ -3,6 +3,8 @@ module GHC.RTS.Events.Util (
     readEventLogIncremental
     -- * Decorating events
   , Decorated(..)
+  , HasDecoration
+  , decorateWith
     -- ** with event info
   , addEventInfo
     -- ** with Deltas (timestamp differences)
@@ -14,7 +16,10 @@ module GHC.RTS.Events.Util (
   , allFiltersDisabled
     -- * Generating output
   , Padding(..)
+  , ApplyPadding(..)
   , showDecoratedEvents
+    -- ** Auxiliary
+  , padTo
     -- * Convenience re-exports
   , module GHC.RTS.Events
   , module Data.Proxy
