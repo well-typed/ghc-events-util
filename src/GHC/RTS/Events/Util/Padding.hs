@@ -7,6 +7,8 @@ module GHC.RTS.Events.Util.Padding (
     Padding(..)
   , ApplyPadding(..)
   , showDecoratedEvents
+    -- * Auxiliary
+  , padTo
   ) where
 
 import Data.Maybe (fromMaybe)
@@ -27,9 +29,10 @@ import GHC.RTS.Events.Util.Delta
 --
 -- 'Nothing' indicates the corresponding field should be skipped.
 data Padding = Padding {
-      padDelta     :: Maybe Int
-    , padTimestamp :: Maybe Int
-    , padCap       :: Maybe Int
+      padDelta        :: Maybe Int
+    , padTimestamp    :: Maybe Int
+    , padCap          :: Maybe Int
+    , padRawEventType :: Maybe Int
     }
   deriving (Show)
 
@@ -104,7 +107,7 @@ instance ApplyPadding (Decorated ds a)
           ms = fromIntegral ns / 1_000_000
 
 {-------------------------------------------------------------------------------
-  Internal auxiliary
+  Auxiliary
 -------------------------------------------------------------------------------}
 
 padTo :: Maybe Int -> String -> Text
