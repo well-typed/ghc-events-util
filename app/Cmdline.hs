@@ -18,6 +18,7 @@ import System.IO
 data Cmdline = Cmdline {
       cmdOutput       :: Maybe FilePath
     , cmdSort         :: Bool
+    , cmdResIsCap     :: Bool
     , cmdMaxLookahead :: Int
     , cmdPadding      :: Padding
     , cmdFilters      :: Filters
@@ -63,6 +64,10 @@ parseCmdline =
       <*> (switch $ mconcat [
               long "sort-events"
             , help "Sort events before processing (this means processing is no longer incremental)"
+            ])
+      <*> (switch $ mconcat [
+              long "res-is-cap"
+            , help "Re-interpret the 'residency' field in heap samples as the capability instead (for use with trace-foreign-calls)"
             ])
       <*> (option auto $ mconcat [
               long "max-lookahead"

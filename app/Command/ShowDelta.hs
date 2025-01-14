@@ -13,7 +13,12 @@ import Data.Maybe (fromMaybe)
 
 showDelta :: Cmdline -> IO ()
 showDelta cmdline = do
-    (header, events) <- readEventLogIncremental cmdInput
+    (header, events') <- readEventLogIncremental cmdInput
+
+    let events :: [Event]
+        events
+          | cmdResIsCap = resIsCap events'
+          | otherwise   = events'
 
     let withInfo :: [ Decorated '[ '("eventInfo", Text) ] Event ]
         withInfo = addEventInfo header cmdMaxLookahead $
@@ -31,12 +36,24 @@ showDelta cmdline = do
 
     showFiltered cmdline withRawEventType
   where
-    Cmdline{cmdInput, cmdMaxLookahead, cmdSort} = cmdline
+    Cmdline{cmdInput, cmdMaxLookahead, cmdSort, cmdResIsCap} = cmdline
 
 {-------------------------------------------------------------------------------
   Processing events
+
+  TODO: Some of this could probably live in the library instead.
 -------------------------------------------------------------------------------}
 
+resIsCap :: [Event] -> [Event]
+resIsCap = map aux
+  where
+    aux :: Event -> Event
+    aux e =
+        case evSpec e of
+          HeapProfSampleCostCentre{heapProfResidency} ->
+            e{evCap = Just (fromIntegral heapProfResidency)}
+          _otherwise ->
+            e
 data DecoratedEvents where
   DecoratedEvents ::
        ( ApplyPadding (Decorated ds Event)
