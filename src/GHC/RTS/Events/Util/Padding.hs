@@ -5,6 +5,7 @@
 -- Intended for unqualified import.
 module GHC.RTS.Events.Util.Padding (
     Padding(..)
+  , ApplyPadding(..)
   , showDecoratedEvents
   ) where
 
